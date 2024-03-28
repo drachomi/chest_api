@@ -1,9 +1,5 @@
 const { Sequelize, DataTypes } = require("sequelize");
 
-const orderModel = require("./order");
-const userModel = require("./user");
-// const alertModel = require("./alert");
-
 module.exports = (sequelize) => sequelize.define("notif_topics", {
   id: {
     type: DataTypes.UUID,

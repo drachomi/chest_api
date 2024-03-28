@@ -21,20 +21,6 @@ module.exports = {
     });
     return usrs;
   },
-  async findAllFirebaseToken(filter) {
-    // const [results, metadata] = await cribstockDatasource.query(
-    //  `SELECT "fireBaseRegToken" FROM "users" AS "user" WHERE "user"."id" IN (select "userids" from notif_topics where "topic_name" = '${groupName}') ORDER BY "notif_topics"."updatedAt" DESC`
-    // );
-    // console.log({ results });
-    // [results, metadata] = await Sequelize.query("SELECT "fireBaseRegToken" FROM "users" AS "user" WHERE "user"."id" IN ('580ba06a-2945-479b-b290-9a11fb83dae6', 'ffd00592-3a06-4f18-9069-1ecb5b8e668b') ORDER BY "user"."updatedAt" DESC;");
-    // Results will be an empty array and metadata will contain the number of affected rows.
-    const usrs = await user.findAll({
-      where: { ...filter },
-      attributes: ["fireBaseRegToken"],
-      order: [["updatedAt", "DESC"]],
-    });
-    return JSON.stringify(usrs);
-  },
   async countReferers(filter) {
     const usrs = await user.findAll({
       where: filter,

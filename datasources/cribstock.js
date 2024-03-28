@@ -40,18 +40,6 @@ console.log({ env: process.env.local_env });
 
 // load models
 require("../models/user")(cribstock);
-require("../models/wallet")(cribstock);
-require("../models/property")(cribstock);
-require("../models/order")(cribstock);
-require("../models/sale")(cribstock);
-require("../models/stock")(cribstock);
-require("../models/prices")(cribstock);
-require("../models/email")(cribstock);
-require("../models/profit")(cribstock);
-require("../models/description")(cribstock);
-require("../models/transaction")(cribstock);
-require("../models/withdrawal")(cribstock);
-require("../models/bank")(cribstock);
 require("../models/company")(cribstock);
 
 console.log("trying to connect to db");

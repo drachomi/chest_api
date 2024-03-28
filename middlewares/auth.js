@@ -18,7 +18,7 @@ module.exports = {
   },
   user: async (req, res, next) => {
     let token = req.headers["x-access-user-token"];
-    const { username, password } = req.body;
+    const { username, password, email } = req.body;
     // the value of username recieved might be email address
     console.log("22");
     if (token) {
@@ -37,7 +37,7 @@ module.exports = {
       //console.log("username/email and password");
       try{
         const foundUser = await userRepository.find({
-          [Op.or]: [{ email:username }, { username }],
+          email 
         });
 
         //console.log("23");
@@ -58,7 +58,7 @@ module.exports = {
             kyc:foundUser.kyc,
             transacted:foundUser.transacted
           };
-          token = jwt.sign(payload, process.env.SECRET, {
+          token = jwt.sign(payload, process.env.JWT_SECRET, {
             expiresIn: "24h", // expires in 24 hours,
           });
   

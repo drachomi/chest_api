@@ -10,7 +10,7 @@ console.log(process.env.DATABASE_URL);
 console.log(env);
 let sequelize;
 if (config.use_environment_url) {
-  const sequelizeProd = new Sequelize(process.env.DATABASE_URL, {
+   sequelize = new Sequelize(process.env.DATABASE_URL, {
     logging: logHandler.debug.bind(logHandler),
     dialect: "postgres",
     protocol: "postgres",
@@ -25,23 +25,6 @@ if (config.use_environment_url) {
         : null,
   });
 
-  const sequelizeDev = new Sequelize({
-    database: process.env.DB_database,
-    username: process.env.DB_username,
-    password: process.env.DB_password,
-    host: process.env.DB_host,
-    port: process.env.DB_port,
-    dialect: "postgres",
-    ssl: true,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
-    },
-  });
-
-  sequelize = process.env.local_env === "wahab" ? sequelizeDev : sequelizeProd;
 } else {
   sequelize = new Sequelize(config.database, config.username, config.password, {
     dialect: config.dialect,

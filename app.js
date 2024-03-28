@@ -27,11 +27,8 @@ morganBody(app);
 
 app.use("/", require("./routes/index"));
 
-app.use("/payment", require("./routes/paymentRoute"));
-app.use("/kyc", require("./routes/kyc"));
-// app.use("/notification", require("./routes/notification").router);
-app.use("/plan", require("./routes/plan").router);
-app.use("/fbnotif", require("./routes/fbnotif").router);
+app.use("/user", require("./routes/user"));
+
 // Redis
 require("./services/Redis");
 

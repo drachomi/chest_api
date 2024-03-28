@@ -6,24 +6,30 @@ const errorHandler = require("../handlers/error");
 const authMiddleWare = require("../middlewares/auth");
 
 const userRepository = require("../repositories/user");
-const emailRepo = require("../repositories/email");
+const companyRepo = require("../repositories/company");
+const memberRepo = require("../repositories/team_member");
 
 const router = express.Router();
 const emailService = require("../services/Email");
-const paystack = require("../services/Paystack");
-const cloudinary = require('cloudinary').v2;
 
-const flutterwave = require("../services/flutterwave");
-const walletRepository = require("../repositories/wallet");
-//const email = require("../repositories/email");
 
 
 
 /* POST user login. */
 router.post("/login", authMiddleWare.user, async (req, res) => {
   try {
-    const user = await userRepository.findById(req.user.id);
-    res.status(200).json({ data: { token: req.user.token, user } });
+    const members = await memberRepo.find({userId: req.user.id});
+    let companies = [];
+
+    for(let i in members){
+      let member = members[i];
+      console.log(member.companyId);
+      console.log(member.role);
+      let company = await companyRepo.find({id: member.companyId});
+      console.log(company);
+      companies.push({businessName: company[0].businessName, role: member.role});
+    }
+    res.status(200).json({ data: { user: req.user, companies } });
   } catch (error) {
     errorHandler(error, res);
   }
@@ -42,30 +48,59 @@ router.post("/admin-login", authMiddleWare.user, authMiddleWare.isAdmin, async (
 
 
 /* POST user signup. */
-router.post("/signup",authMiddleWare.bvn, async (req, res) => {
+router.post("/signup", async (req, res) => {
   try {
-    const { email, username, password, bvn, phone, firstName, lastName } = req.body;
-    const user = await userRepository.find({
-      [Op.or]: [{ email }, { username }],
+    const { email, password, phone, firstName, lastName, businessName,country, address, size  } = req.body;
+    let user = await userRepository.find({
+      email
     });
     if (user) {
       console.log("Error isuser exist ");
       errorHandler("User already exists.", res);
       return;
     }
-    const data = await userRepository.create({
-      ...req.body,
-      password: await hash(password, await genSalt()),
+     user = await userRepository.create({
+      email, phone, firstName, lastName,password: await hash(password, await genSalt()),
     });
-    await emailService.welcome(username, email)
-    //call flutterwave for wallet
-    await flutterwave.createWallet({email, bvn, phone, firstName, lastName, "user_id":data.id, service:'FTW'})
-    res.status(201).json({ data });
+
+    //await emailService.welcome(firstName, email)
+    const company = await companyRepo.create({businessName, country, address, size});
+    await memberRepo.create({companyId: company.id, userId: user.id, role: "owner"})
+    //Subscription event should happen here
+    res.status(201).json({ success: true, message: "User created",user });
   } catch (error) {
     console.log("Error in sign up is " + error)
     errorHandler(error, res);
   }
 });
+
+router.post("/add-member", async(req,res)=>{
+ const {email, companyId, role} = req.body;
+ let user = await userRepository.findByEmail(email);
+ if(!user){
+  //New User
+  user = await userRepository.create({email: email});
+ }
+
+ let member = await memberRepo.find({userId: user.id, companyId: companyId});
+ if(member)  errorHandler({message: "Already a team member"}, res);
+
+member = memberRepo.create({companyId: companyId, userId: user.id, role: role})
+
+res.status(200).json({ member });
+
+ 
+});
+
+
+
+
+
+
+
+
+
+
 
 /* GET users listing. */
 router.get("/", authMiddleWare.admin, async (req, res) => {
@@ -117,24 +152,7 @@ router.get("/:id", authMiddleWare.admin, async (req, res) => {
   }
 });
 
-router.post("/newsletter", async (req, res) => {
-  console.log("email is " + req.body.email);
-  try {
-    const e = await emailRepo.findByEmail(req.body.email);
 
-    if (e) {
-      return res.status(400).send({ msg: "User already subscribed" });
-    }
-    const data = await emailRepo.create({
-      ...req.body,
-    });
-    emailService.newsletter(req.body.email);
-    return res.status(201).json({ data });
-  } catch (error) {
-    console.log("Error in sign up is " + error)
-    return res.status(400).send({ msg: "an error occured", err: error });
-  }
-});
 
 router.post("/forgot_password", async (req, res) => {
   let user_email = req.body.email;
@@ -231,152 +249,6 @@ router.post("/validate_otp", async (req, res) => {
   await userRepository.updateById(user.id, { verified: true });
   return res.status(201).send({ success: true });
 });
-router.post("/generate_account", authMiddleWare.user, async (req, res) => {
-
-  let obj = {
-    email: req.user.email,
-    first_name: req.user.firstName,
-    last_name : req.user.lastName,
-    phone : req.user.phone,
-    account_number: req.body.account_number,
-    bvn : req.body.bvn,
-    bank_code:req.body.bank_code
-  }
-
-  try{
-    let customer_code = await paystack.createCustomer(obj);
-
-    if(!customer_code){
-      // failed
-      return res.status(400).send({ success: false, message: "Could not create, contact customer care" });
-    }
-    let identify_customer = await paystack.identifyCustomer(obj,customer_code);
-
-    if(identify_customer){
-      return res.status(201).send({ success: true, message:"Verifying your identity, check your mail for status" });
-
-    }
-    return res.status(400).send({ success: false, message: "An error occured, contact support" });
-
-
-  }catch(err){
-    return res.status(400).send({ success: false, message: "An error occured, contact support" });
-
-  }
-  
-
-});
-
-router.post("/upload_image",async(req,res)=>{
-  console.log('img 1')
-  let image = req.body.image;
-  try{
-    console.log('img 2')
-    const result = await cloudinary.uploader.upload(image);
-
-    if(!result){
-      return res.status(400).send({ success: false, message: "Could not Upload" });
-    }
-
-    console.log(result);
-
-    return res.status(200).send({ success: true, message: "Uploaded", link:result.secure_url });
-
-
-  }catch(err){
-   
-    console.log({err});
-    return res.status(400).send({ success: false, message: "Could not upload" });
-
-  }
-})
-
-
-router.post('/bvn',authMiddleWare.user,authMiddleWare.isAdmin, authMiddleWare.bvn, async(req,res)=>{
-
-  let {bvn} = req.body
-  if(!bvn) return res.status(400).send({message:'requires 11 digits bvn'})
-  bvn = bvn.toString()
-  if(bvn.length !== 11) return res.status(400).send({message:'requires 11 digits bvn'})
-  try{
-  let bvnUpdated = await userRepository.updateById(req.user.id, {bvn})
-  return res.status(200).send({success:true, message:'bvn updated'})
-  }catch(err){
-      console.log({err})
-      return res.status(500).send({success:false, message:'bvn could not be updated'})
-  }
-})
-
-router.get('/kyc/unverified',authMiddleWare.user,authMiddleWare.isAdmin,async(req,res)=>{
-
-  let {subject} = req.query
-  subject = subject.trim()
-  if(!subject) return res.status(400).send({success:false,message:'no kyc subject specified'})
-  //check where kyc is not accepted, subject_verified is false, but subject is filled 
- try{
-      let unverified = await userRepository.findAll({ [subject]: {[Op.ne]: null}, kyc:{[Op.not]:'accepted'}, [`${subject}_verified`]:{[Op.or]:[false,null]}})
-      console.log({subject,le:unverified.length})
-      return res.status(200).send({success:true, unverified})
-  }catch(err){
-    console.log({err})
-   return res.status(500).send({success:false, message:'something happened'})
-  }
-
-})
-
-router.post('/kyc/verify/:subject/:userId',authMiddleWare.user,authMiddleWare.isAdmin,async(req,res)=>{
-
-  let {subject,userId} = req.params
-  let {accepted, reason} = req.body
-  subject = subject=='govid'? 'GOVT. ID': subject
-  if(accepted){
-    try {
-      //update profile of user
-      let user = await userRepository.updateById(userId,{[`${subject}_verified`]:true})
-      let userWallet = await walletRepository.findByUserId(userId)
-      if(userWallet){
-        //that means user has completed other half KYC
-        user = await userRepository.updateById(userId,{kyc:'accepted'})
-      }
-      console.log({user,[`${subject}`]:'accepted'})
-      //send a mail about the decision
-      let mail_subject = `Your ${subject.toUpperCase()} has been Accepted`
-      let message = `Hi  ${user.firstName},\n\nHurray!!!\n\nYour ${subject.toUpperCase()} has been verified and accepted! \n\nKeep using Cribstock, and refer your friends.\n\nCheers!`
-      emailService.utils(user.email,message,mail_subject)
-      return res.status(200).send({success:true, message:"decision taken",user})
-    } catch (error) {
-      console.log({error})
-      return res.status(500).send({success:false, message:'something happened'})
-    }
-  }else{
-
-      //that means user has completed other half KYC
-      user = await userRepository.updateById(userId,{kyc:'declined'})
-
-      let mail_subject = `Your ${subject.toUpperCase()} was not verified`
-      let message = `Hello ${user.firstName},\n\nYour ${subject.toUpperCase()} could not be accepted because of the following reason(s):\n\n${reason}\n\nKindly submit a valid one.\n\nKeep using Cribstock, and refer your friends.\n\nCheers!`
-      emailService.utils(user.email,message,mail_subject)
-      return res.status(200).send({success:true, message:"not verified",user})
-  }
-
-
-})
-
-router.post('/email',authMiddleWare.user, authMiddleWare.isAdmin,async (req,res)=>{
-  let {old_email,new_email} = req.body
-  if(!old_email || !new_email) return res.status(400).send({message:'provide both emails', success:false})
-  let old_user = await userRepository.findByEmail(old_email)
-  if(!old_user) return res.status(400).send({success:false, message:'no user with that email address' })
-  try{
-    let new_user = await userRepository.updateById(old_user.id,{email:new_email})
-    if(new_user) return res.status(200).send({message:'updated', success:true})
-    return res.status(400).send({message:'did not update', success:false})
-  }catch(err){
-    console.log({err})
-    return res.status(400).send({message:'did not update due to an error', success:false})
-  }
-
-})
 
 router.get('/usernames/:username',async(req,res)=>{
   let {username} = req.params
