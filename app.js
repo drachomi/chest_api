@@ -4,6 +4,7 @@ const morgan = require("morgan");
 const morganBody = require("morgan-body");
 const bodyParser = require("body-parser");
 const models = require("./models");
+const cors = require("cors");
 const app = express();
 
 models.sequelize
@@ -19,6 +20,7 @@ app.use(morgan("dev"));
 app.use(express.json({ limit: "100mb" }));
 // app.use(express.urlencoded({ extended: false }));
 // app.use(cookieParser());
+app.use(cors());
 app.use(express.static(path.join(__dirname, "./public")));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
