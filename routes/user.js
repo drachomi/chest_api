@@ -93,6 +93,17 @@ res.status(200).json({ member });
 });
 
 
+// router.get("/imoh", async(req,res)=>{
+//   const company = await companyRepo.find();
+
+//   console.log(company);
+
+//   res.status(200).json(company);
+
+
+  
+// })
+
 
 
 

@@ -1,0 +1,4 @@
+companyName,name,email,referer,refererEmail
+Company A,John Doe,john@example.com,Referrer A,referrerA@example.com
+Company B,Jane Smith,jane@example.com,Referrer B,referrerB@example.com
+Company C,David Johnson,david@example.com,Referrer C,referrerC@example.com
